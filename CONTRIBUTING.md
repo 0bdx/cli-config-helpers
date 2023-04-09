@@ -35,7 +35,7 @@
 Clone the repository, and `cd` into it:  
 `git clone git@github.com:0bdx/cli-config-helpers.git && cd cli-config-helpers`
 
-Install the the two dev-dependencies and the runtime dependency:  
+Install the the three dev-dependencies and the runtime dependency:  
 `npm i`  
 @0bdx/build-helpers 0.0.4, 1 package, 22 kB for 6 items.  
 rollup 3.20.2, 2 packages, 2.6 MB for 32 items.  

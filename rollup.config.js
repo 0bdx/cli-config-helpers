@@ -12,6 +12,9 @@ export default {
             true,
         ),
     ),
+    external: [
+        '@0bdx/ainta',
+    ],
     plugins: [ fixJSDoc() ],
 }
 

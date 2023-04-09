@@ -1,0 +1,47 @@
+{
+  "name": "cli-config-helpers",
+  "version": "0.0.1",
+  "description": "Utilities for working with configuration files, environment variables and command line arguments.",
+  "type": "module",
+  "files": [
+    "cli-config-helpers.d.ts",
+    "cli-config-helpers.js"
+  ],
+  "engines": {
+    "node": ">= 16.16.0"
+  },
+  "main": "cli-config-helpers.js",
+  "scripts": {
+    "build:prod": "rollup -c",
+    "build:types": "tsc cli-config-helpers.js --allowJs --declaration --emitDeclarationOnly",
+    "build": "for s in {prod,types};do npm run build:$s;done",
+    "preflight:test": "echo \"🧬 test.js\" && node test.js",
+    "preflight:types": "tsc cli-config-helpers.js --allowJs --checkJs --noEmit",
+    "preflight": "for s in {test,types};do npm run preflight:$s;done",
+    "test": "echo \"🧪 src/test.js\" && node src/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0bdx/cli-config-helpers.git"
+  },
+  "keywords": [
+    "cli",
+    "config",
+    "env",
+    "argv"
+  ],
+  "author": "0bdx <0@0bdx.com> (0bdx.com)",
+  "license": "MIT",
+  "types": "./cli-config-helpers.d.ts",
+  "bugs": {
+    "url": "https://github.com/0bdx/cli-config-helpers/issues"
+  },
+  "homepage": "https://github.com/0bdx/cli-config-helpers#readme",
+  "devDependencies": {
+    "@0bdx/build-helpers": "^0.0.4",
+    "rollup": "^3.20.2"
+  },
+  "dependencies": {
+    "@0bdx/ainta": "^0.0.15"
+  }
+}

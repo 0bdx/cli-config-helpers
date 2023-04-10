@@ -159,3 +159,17 @@ export function parseArgv(argv: string[]): {
     };
     ignored: string[];
 };
+/**
+ * ### Validates an array of `ConfigDescriptor` objects.
+ *
+ * @param {any} configDescriptors
+ *    If valid, an array of correctly formed `ConfigDescriptor` objects.
+ * @param {string} [begin='validateConfigDescriptors()']
+ *    An optional way to override the `begin` string sent to `Ainta` functions.
+ * @returns {false|string}
+ *    Returns boolean `false` if `configDescriptors` is valid, or otherwise a
+ *    short explanation of the problem.
+ * @throws
+ *    Throws an `Error` if the `begin` argument is invalid.
+ */
+export function validateConfigDescriptors(configDescriptors: any, begin?: string): false | string;

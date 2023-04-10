@@ -4,7 +4,7 @@
  * @license Copyright (c) 2023 0bdx <0@0bdx.com> (0bdx.com)
  * SPDX-License-Identifier: MIT
  */
-import { aintaArray } from '@0bdx/ainta';
+import { aintaArray, aintaString, aintaObject } from '@0bdx/ainta';
 
 /**
  * ### Converts an `argv` to a dictionary of key/value pairs.
@@ -171,4 +171,130 @@ function parseArgv(argv) {
  */
 const defaultConfigDescriptors = [];
 
-export { defaultConfigDescriptors, parseArgv };
+/**
+ * ### Validates an array of `ConfigDescriptor` objects.
+ *
+ * @param {any} configDescriptors
+ *    If valid, an array of correctly formed `ConfigDescriptor` objects.
+ * @param {string} [begin='validateConfigDescriptors()']
+ *    An optional way to override the `begin` string sent to `Ainta` functions.
+ * @returns {false|string}
+ *    Returns boolean `false` if `configDescriptors` is valid, or otherwise a
+ *    short explanation of the problem.
+ * @throws
+ *    Throws an `Error` if the `begin` argument is invalid.
+ */
+function validateConfigDescriptors(
+    configDescriptors,
+    begin = 'validateConfigDescriptors()'
+) {
+
+    // Validate `begin`, and throw an exception if it fails.
+    const aBegin = aintaString(begin, 'begin',
+        { begin:'validateConfigDescriptors()'});
+    if (aBegin) throw Error(aBegin);
+
+    // Fail early, if `configDescriptors` is not an array of objects.
+    const aCDs = aintaArray(configDescriptors, 'configDescriptors',
+        { begin, types:['object'] });
+    if (aCDs) return aCDs;
+
+    // Define a valid `ConfigDescriptor`, using an Ainta `schema` object.
+    /** @type {import('@0bdx/ainta').Schema} */
+    const schema = {
+        // If `fallback` is 'undefined', the value is mandatory.
+        fallback: { types:['boolean','number','string','undefined'] },
+        // fallback: { fit:'bool|num|str?' }, // @TODO add `fit` to Ainta
+
+        // Determine which kind of value to expect, boolean, number, or string.
+        kind: { enum:['boolean','number','string'], types:['string'] },
+        // kind: { fit:'str', is:['boolean','number','string'] }, // @TODO add `fit` and `is` to Ainta
+
+        // The value's long name in the 'arguments vector', `process.argv`.
+        // - Must start with a lowercase ASCII letter
+        // - Must continue with at least one dash, digit or lowercase ASCII letter
+        // - Must be no longer than 32 characters
+        nameArgvLong: { max:32, min:2, rx:/^[a-z][-0-9a-z]+$/, types:['string','undefined'] },
+
+        // The value's short name in the 'arguments vector', `process.argv`.
+        // - Must be a lower or uppercase ASCII letter, or the question mark `"?"`
+        // - Must be exactly one character long
+        nameArgvShort: { max:1, min:1, rx:/^[a-z?]$/i, types:['string','undefined'] },
+
+        // The value's name in the environment:
+        // - Must start with an uppercase ASCII letter
+        // - May continue with an underscore, digit or uppercase ASCII letter
+        // - Must be no longer than 32 characters
+        nameEnv: { max:32, min:1, rx:/^[A-Z][_0-9A-Z]*$/, types:['string','undefined'] },
+
+        // The property name in the returned dictionary object.
+        // - Must start with an underscore or ASCII letter
+        // - May continue with an underscore, digit or ASCII letter
+        // - Must be no longer than 32 characters
+        nameReturned: { max:32, min:1, rx:/^[_a-z][_0-9a-z]*$/i, types:['string'] },
+
+        // A one-line summary of the expected value, up to 64 characters long.
+        note: { max:64, min:1, rx:/^[ -\[\]-~]+$/, types:['string','undefined'] },
+    };
+
+    // Validate each item, and return an explanation if one fails.
+    const aSchemaResults = configDescriptors
+        .map((d, i) =>
+            aintaObject(d, `configDescriptors[${i}]`, { begin, schema }))
+        .filter(result => result)
+    ;
+    if (aSchemaResults.length) return aSchemaResults.join('\n');
+
+    // If `nameArgvLong`, `nameArgvShort` and `nameEnv` are all undefined,
+    // `fallback` cannot also be undefined.
+    const aAllUndefinedResults = configDescriptors
+        .map(({ fallback, nameArgvLong, nameArgvShort, nameEnv, nameReturned }, i) => {
+            if (fallback === void 0
+                && nameArgvLong === void 0
+                && nameArgvShort === void 0
+                && nameEnv === void 0
+            ) return `${begin ? begin + ': ' : '' }\`configDescriptors[${i}]\` ` +
+                `'${nameReturned}' has no possible value, because \`fallback\`, ` +
+                '`nameArgvLong`, `nameArgvShort` and `nameEnv` are all undefined';
+        })
+        .filter(result => result)
+    ;
+    if (aAllUndefinedResults.length) return aAllUndefinedResults.join('\n');
+
+    // Builds a name-collision error message.
+    const collisionMessage = (currentIndex, existingIndex, key, val) =>
+        `${begin ? begin + ': ' : '' }\`configDescriptors[${currentIndex}].${key}\` ` +
+        `'${val}' was already used by \`configDescriptors[${existingIndex}]\``;
+
+    // Check that `configDescriptors` does not contain any name collisions.
+    const nameArgvLongs = {}, nameArgvShorts = {}, nameEnvs = {}, nameReturneds = {};
+    const aCollisionResults = configDescriptors
+        .map(({ nameArgvLong, nameArgvShort, nameEnv, nameReturned }, i) => {
+            if (nameArgvLong) {
+                if (nameArgvLong in nameArgvLongs) return collisionMessage(i,
+                    nameArgvLongs[nameArgvLong], 'nameArgvLong', nameArgvLong);
+                nameArgvLongs[nameArgvLong] = i;
+            }
+            if (nameArgvShort) {
+                if (nameArgvShort in nameArgvShorts) return collisionMessage(i,
+                    nameArgvShorts[nameArgvShort], 'nameArgvShort', nameArgvShort);
+                nameArgvShorts[nameArgvShort] = i;
+            }
+            if (nameEnv) {
+                if (nameEnv in nameEnvs) return collisionMessage(i,
+                    nameEnvs[nameEnv], 'nameEnv', nameEnv);
+                nameEnvs[nameEnv] = i;
+            }
+            if (nameReturned in nameReturneds) return collisionMessage(i,
+                nameReturneds[nameReturned], 'nameReturned', nameReturned);
+            nameReturneds[nameReturned] = i;
+        })
+        .filter(result => result)
+    ;
+    if (aCollisionResults.length) return aCollisionResults.join('\n');
+
+    // Return `false` to signify there were no issues.
+    return false;
+}
+
+export { defaultConfigDescriptors, parseArgv, validateConfigDescriptors };

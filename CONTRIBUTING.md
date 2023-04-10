@@ -121,7 +121,7 @@ sed -ix 's/§c/"§Z": "for s in {§A,§B};do npm run §Z:$s;done"/' *e.json
 sed -ix 's/§A/prod/g;s/§B/types/g;s/§Z/build/g;' *e.json
 sed -ix 's/§d/"§Z:§D": "echo \\"🧬 test.js\\" && node test.js"/' *e.json
 sed -ix 's/§e/"§Z:§E": "tsc §0js §_"/' *e.json
-sed -ix 's/§_/--allowJs --checkJs --noEmit/' *e.json
+sed -ix 's/§_/--allowJs --checkJs --noEmit --lib es2019/' *e.json
 sed -ix 's/§f/"§Z": "for s in {§D,§E};do npm run §Z:$s;done"/' *e.json
 sed -ix 's/§D/test/g;s/§E/types/g;s/§Z/preflight/g;' *e.json
 sed -ix 's|Error: no test specified|🧪 src/test.js|' *e.json
@@ -165,7 +165,7 @@ npm install @0bdx/ainta
     The sixth script is a shortcut to run both `"preflight:..."` scripts:  
     `sed -ix 's/§d/"§Z:§D": "echo \"🧬 test.js\" && "/' *e.json`  
     `sed -ix 's/§e/"§Z:§E": "tsc §0js §_"/' *e.json`  
-    `sed -ix 's/§_/--allowJs --checkJs --noEmit/' *e.json`  
+    `sed -ix 's/§_/--allowJs --checkJs --noEmit --lib es2019/' *e.json`  
     `sed -ix 's/§f/"§Z": "for s in {§D,§E};do npm run §Z:$s;done"/' *e.json`  
     `sed -ix 's/§D/test/g;s/§E/types/g;s/§Z/preflight/g;' *e.json`  
 11. The seventh script runs unit tests on the source code:  

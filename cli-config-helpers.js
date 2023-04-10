@@ -337,8 +337,7 @@ function gatherConfig(configDescriptors, env, argv, options={}) {
     if (aResults.length) throw Error(aResults.join('\n'));
 
     // Prepare an array which will determine whether fallbacks will be needed.
-    // @TODO use `.fill(true)` if we upgrade tsconfig.js's compilerOptions.lib
-    const useFallbacks = [...Array(configDescriptors.length)].map(() => true);
+    const useFallbacks = Array(configDescriptors.length).fill(true);
 
     /** @type Object.<string, boolean|number|string> */
     const out = { WARNINGS:'' };
@@ -539,4 +538,140 @@ function stringToNumber(begin, identifier, strOrTrue) {
  */
 const defaultConfigDescriptors = [];
 
-export { defaultConfigDescriptors, gatherConfig, parseArgv, validateConfigDescriptors };
+/**
+ * ### Text content for `generateHelp()`.
+ *
+ * Each string is actually optional, so an empty object `{}` is perfectly valid.
+ *
+ * @typedef {object} GenerateHelpContent
+ * @property {string} [headline]
+ *    An optional title, for the top of the help-page, eg `"some_command help"`.
+ * @property {string[]} [preamble]
+ *    An optional section before `"Usage"`, where each string is a line.
+ * @property {string[]} [text]
+ *    An optional section after `"Usage"`, where each string is a line.
+ */
+
+/**
+ * ### Generates the help-page for a command line app.
+ *
+ * @param {ConfigDescriptor[]} configDescriptors
+ *    An array of objects which specify the expected values.
+ * @param {GenerateHelpContent} [content={}]
+ *    The optional configuration object.
+ * @returns {string[]}
+ *    An array of strings, where each string is a line.
+ * @throws
+ *    Throws an `Error` if either of the arguments are invalid.
+ */
+function generateHelp(configDescriptors, content={}) {
+    const begin = 'generateHelp()';
+
+    // If `configDescriptors` ainta valid array of `Descriptor` objects, throw
+    // an exception explaining went wrong.
+    const aDescriptors = validateConfigDescriptors(configDescriptors, begin);
+    if (aDescriptors) throw Error(aDescriptors);
+
+    // If `content` ainta valid `GenerateHelpContent`, throw an exception.
+    const rx = /^[ -\[\]-~]*$/; // printable ASCII, except the backslash "\"
+    const aContent = aintaObject(content, 'content', { begin, schema: {
+        headline: { max:80, min:1, rx, types:['string','undefined'] },
+        preamble: { max:80,        rx, types:[['string'],'undefined'] },
+        text:     { max:80,        rx, types:[['string'],'undefined'] },
+    }});
+    if (aContent) throw Error(aContent);
+
+    // Dereference the `content` argument, and initialise the output array.
+    const { headline, preamble, text } = content;
+    const out = [];
+
+    // If `content.headline` was specified, add it, along with a line of "="s.
+    // Note the empty string "", which adds an extra newline after the "="s.
+    if (headline) out.push(headline, '='.repeat(headline.length), '');
+
+    // If `content.preamble` was specified, add it.
+    if (preamble) out.push(...preamble, '');
+
+    // Generate the `usage` section. If all `configDescriptors` are `fallback`-only,
+    // there will be nothing to display, and `usageSection` will be empty.
+    const usage = generateUsageSection(configDescriptors);
+
+    // If there is no `Usage`, `preamble` or `text` section, add the default
+    // "No usage information available." line. Otherwise, add the "Usage"
+    // subheading, followed by the `usage` section itself.
+    if (usage.length === 0) {
+        if (!preamble && !text) out.push('No usage information available.', '');
+    } else {
+        out.push('Usage', '-----', ...usage, '');
+    }
+
+    // If `content.text` was specified, add it.
+    if (text) out.push(...text, '');
+
+    return out;
+}
+
+
+/* ----------------------------- Private Methods ---------------------------- */
+
+/**
+ * ### Generates the `"Usage"` section for `generateHelp()`.
+ *
+ * @param {ConfigDescriptor[]} configDescriptors
+ *    An array of objects which specify the expected values.
+ * @returns {string[]}
+ *    Returns the `"Usage"` section, where each string is a line.
+ */
+function generateUsageSection(configDescriptors) {
+    return configDescriptors
+        .flatMap(({
+            fallback,     // optional string | number | boolean;
+            kind,         //          "string" | "number" | "boolean";
+            nameArgvLong, // optional string;
+            nameArgvShort,// optional string;
+            nameEnv,      // optional string;
+            note,         // optional string;
+        }) => {
+
+            // If the descriptor is `fallback`-only, then it is effectively
+            // private, so shouldn't be listed in the "usage" section.
+            if (!nameArgvLong && !nameArgvShort && !nameEnv) return null;
+
+            // Initialise the output array.
+            const out = [''];
+
+            // Generate the signature. Generally the `env` is the same as the
+            // `argv`. There are two exceptions, commented below:
+            const sigs = kind === 'number'
+                ? [`<${kind}>`]
+                : kind === 'string'
+                    ? [`"<${kind}>"`]
+                    : fallback === false
+                        ? ['','true'] // don't show "true" after an `argv`
+                        : fallback === true
+                            ? ['false']
+                            : ['<true|false>']; // mandatory, or fallback is another type
+
+            // There must be at least one `argv` and/or `env` line to add.
+            if (nameArgvShort) out.push(` -${nameArgvShort} ${sigs[0]}`);
+            if (nameArgvLong) out.push(`--${nameArgvLong} ${sigs[0]}`);
+            if (nameEnv) out.push(`  ${nameEnv}=${sigs[1]||sigs[0]}`);
+
+            // Add a line if the value is optional, showing the `fallback`.
+            const isOpt = typeof fallback !== 'undefined';
+            if (isOpt) out.push(`    Defaults to ${JSON.stringify(fallback)}`);
+
+            // Add a final line if the value is mandatory, or there is a `note`.
+            if (!isOpt || note) out.push(
+                '    ' + // indent
+                (isOpt ? '' : 'MANDATORY  ') +
+                (note || '') // show `note`, if provided
+            );
+
+            return out;
+        })
+        .filter(line => line !== null) // remove `fallback`-only configDescriptors
+    ;
+}
+
+export { defaultConfigDescriptors, gatherConfig, generateHelp, parseArgv, validateConfigDescriptors };

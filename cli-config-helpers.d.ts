@@ -18,6 +18,25 @@ export type GatherConfigOptions = {
     preferEnv?: boolean;
 };
 /**
+ * ### Text content for `generateHelp()`.
+ *
+ * Each string is actually optional, so an empty object `{}` is perfectly valid.
+ */
+export type GenerateHelpContent = {
+    /**
+     * An optional title, for the top of the help-page, eg `"some_command help"`.
+     */
+    headline?: string;
+    /**
+     * An optional section before `"Usage"`, where each string is a line.
+     */
+    preamble?: string[];
+    /**
+     * An optional section after `"Usage"`, where each string is a line.
+     */
+    text?: string[];
+};
+/**
  * ### Describes a value expected in a config file, `process.env` or `argv`.
  */
 export type ConfigDescriptor = {
@@ -186,6 +205,32 @@ export function gatherConfig(configDescriptors: ConfigDescriptor[], env: {
 }, argv: string[], options?: GatherConfigOptions): {
     [x: string]: boolean | number | string;
 };
+/**
+ * ### Text content for `generateHelp()`.
+ *
+ * Each string is actually optional, so an empty object `{}` is perfectly valid.
+ *
+ * @typedef {object} GenerateHelpContent
+ * @property {string} [headline]
+ *    An optional title, for the top of the help-page, eg `"some_command help"`.
+ * @property {string[]} [preamble]
+ *    An optional section before `"Usage"`, where each string is a line.
+ * @property {string[]} [text]
+ *    An optional section after `"Usage"`, where each string is a line.
+ */
+/**
+ * ### Generates the help-page for a command line app.
+ *
+ * @param {ConfigDescriptor[]} configDescriptors
+ *    An array of objects which specify the expected values.
+ * @param {GenerateHelpContent} [content={}]
+ *    The optional configuration object.
+ * @returns {string[]}
+ *    An array of strings, where each string is a line.
+ * @throws
+ *    Throws an `Error` if either of the arguments are invalid.
+ */
+export function generateHelp(configDescriptors: ConfigDescriptor[], content?: GenerateHelpContent): string[];
 /**
  * ### Converts an `argv` to a dictionary of key/value pairs.
  *

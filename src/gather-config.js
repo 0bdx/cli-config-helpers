@@ -94,8 +94,7 @@ export default function gatherConfig(configDescriptors, env, argv, options={}) {
     if (aResults.length) throw Error(aResults.join('\n'));
 
     // Prepare an array which will determine whether fallbacks will be needed.
-    // @TODO use `.fill(true)` if we upgrade tsconfig.js's compilerOptions.lib
-    const useFallbacks = [...Array(configDescriptors.length)].map(() => true);
+    const useFallbacks = Array(configDescriptors.length).fill(true);
 
     /** @type Object.<string, boolean|number|string> */
     const out = { WARNINGS:'' };

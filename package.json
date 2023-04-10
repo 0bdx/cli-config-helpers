@@ -16,7 +16,7 @@
     "build:types": "tsc cli-config-helpers.js --allowJs --declaration --emitDeclarationOnly",
     "build": "for s in {prod,types};do npm run build:$s;done",
     "preflight:test": "echo \"🧬 test.js\" && node test.js",
-    "preflight:types": "tsc cli-config-helpers.js --allowJs --checkJs --noEmit",
+    "preflight:types": "tsc cli-config-helpers.js --allowJs --checkJs --noEmit --lib es2019",
     "preflight": "for s in {test,types};do npm run preflight:$s;done",
     "test": "echo \"🧪 src/test.js\" && node src/test.js"
   },

@@ -1,5 +1,5 @@
 {
-  "name": "cli-config-helpers",
+  "name": "@0bdx/cli-config-helpers",
   "version": "0.0.1",
   "description": "Utilities for working with configuration files, environment variables and command line arguments.",
   "type": "module",

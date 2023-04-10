@@ -4,7 +4,7 @@
  * @license Copyright (c) 2023 0bdx <0@0bdx.com> (0bdx.com)
  * SPDX-License-Identifier: MIT
  */
-import { aintaArray, aintaString, aintaObject } from '@0bdx/ainta';
+import narrowAintas, { aintaArray, aintaString, aintaObject, aintaDictionary } from '@0bdx/ainta';
 
 /**
  * ### Converts an `argv` to a dictionary of key/value pairs.
@@ -118,58 +118,6 @@ function parseArgv(argv) {
 
     return { config, ignored };
 }
-
-/**
- * ### Describes a value expected in a config file, `process.env` or `argv`.
- *
- * @typedef {object} ConfigDescriptor
- * @property {boolean|number|string} [fallback]
- *    An optional default value to use if the configuration file, `process.env`
- *    and `process.argv` do not contain this variable. If `fallback` is
- *    `undefined`, the value is mandatory.
- * @property {'boolean'|'number'|'string'} kind
- *    Determines the allowed type of value, `boolean`, `number`, or `string`.
- * @property {string} [nameArgvLong]
- *    The value's long name in the 'arguments vector', `process.argv`.
- *    - Must start with a lowercase ASCII letter
- *    - Must continue with at least one dash, digit or lowercase ASCII letter
- *    - Must be no longer than 32 characters
- *    - If `undefined`, there is no long name
- * @property {string} [nameArgvShort]
- *    The value's short name in the 'arguments vector', `process.argv`.
- *    - Must be a lower or uppercase ASCII letter, or the question mark `"?"`
- *    - Must be exactly one character long
- *    - If `undefined`, there is no short name
- * @property {string} [nameEnv]
- *    The value's name in the shell environment, `process.env`.
- *    - Must start with an uppercase ASCII letter
- *    - May continue with an underscore, digit or uppercase ASCII letter
- *    - Must be no longer than 32 characters
- *    - If `undefined`, value cannot come from the shell environment
- * @property {string} nameReturned
- *    The property name in the dictionary object that `gatherConfig()` returns.
- *    - Must start with an underscore or ASCII letter
- *    - May continue with an underscore, digit or ASCII letter
- *    - Must be no longer than 32 characters
- * @property {string} [note]
- *    A one-line summary of the expected value, up to 64 characters long, which
- *    will be displayed by `generateHelp()` if not `undefined`.
- *    - May contain any printable ASCII character, except the backslash `"\"`
- *    - Must be between 1 and 64 characters long
- */
-
-/**
- * ### An empty array of `ConfigDescriptor` objects.
- * 
- * If no values are expected, there are no configuration descriptors. A function
- * which takes a `configDescriptors` argument could use this as the default.
- * 
- * But using an empty `[]` like this is really a way to export the type, while
- * avoiding the "File '...' is not a module. ts(2306)" error.
- * 
- * @type ConfigDescriptor[]
- */
-const defaultConfigDescriptors = [];
 
 /**
  * ### Validates an array of `ConfigDescriptor` objects.
@@ -297,4 +245,298 @@ function validateConfigDescriptors(
     return false;
 }
 
-export { defaultConfigDescriptors, parseArgv, validateConfigDescriptors };
+/**
+ * ### A configuration object for `gatherConfig()`.
+ *
+ * Each option is actually optional, so an empty object `{}` is perfectly valid.
+ * 
+ * @TODO rethink `preferEnv`, when gathering from a config file is added
+ *
+ * @typedef {object} GatherConfigOptions
+ * @property {boolean} [allowUnexpectedArgv=false]
+ *    Optional flag. If `true`, unexpected values in `argv` do not throw an error.
+ * @property {string} [begin='gatherConfig()']
+ *    An optional way to override the `begin` string sent to `Ainta` functions.
+ * @property {boolean} [preferEnv=false]
+ *    Optional flag. If `true`, values in `env` override values in `argv`.
+ */
+
+/**
+ * ### Gathers values from a configuration file, `process.env` or `process.argv`.
+ *
+ * @TODO gather from a config file - that will mean six possible sources
+ *
+ * There are five possible sources of an expected variable's value:
+ * 1. `argv` - long command line arguments, eg `my_command --my-var 123`
+ * 2. `argv` - short command line arguments, eg `my_command -m 123`
+ * 3. `argv` - runs of short command line arguments, eg `my_command -abc 123`
+ * 4. `env` - the node process's environment, eg `MY_VAR=123 my_command`
+ * 5. `configDescriptors.fallback` - a default provided in a `Descriptor` object
+ *
+ * Generally, command line arguments are preferred over environment variables,
+ * but that behavior can be overridden:
+ * - By default, the order of preference is 1, 2, 3, 4, 5
+ * - If `options.preferEnv` is set to `true`, the order is 4, 1, 2, 3, 5
+ *
+ * If a `ConfigDescriptor` object doesn’t provide a fallback, then that variable
+ * is mandatory, and `gatherConfig()` will throw an Error if that variable does
+ * not exist in `env` or `argv`.
+ *
+ * Note that unexpected values in `env` are ignored. By default, unexpected
+ * values in `argv` throw an error, but you can switch that behavior off using
+ * the `allowUnexpectedArgv` option.
+ *
+ * The values in `env` and `argv` will all be strings, but `gatherConfig()` will
+ * convert the strings "true" and "false" to booleans, and convert strings like
+ * "-12.34e-5", "0b10101" and "-Infinity" to numbers.
+ * 
+ * @param {ConfigDescriptor[]} configDescriptors
+ *    An array of objects which describe the expected configuration values.
+ * @param {Object.<string, string>} env
+ *    A ‘dictionary object’, usually the environment variables, `process.env`.
+ * @param {string[]} argv
+ *    An ‘arguments vector’, usually the command line arguments, `process.argv`.
+ * @param {GatherConfigOptions} [options={}]
+ *    The optional configuration object.
+ * @returns {Object.<string, boolean|number|string>}
+ *    A ‘dictionary object’ where the values are booleans, numbers or strings.
+ *    This object always contains a special `WARNINGS` string, which is empty
+ *    if there were no issues.
+ * @throws
+ *    Throws an `Error` if:
+ *    - Any of the arguments are invalid
+ *    - A mandatory variable is not specified in `env` or `argv`
+ *    - `options.allowUnexpectedArgv` is false and `argv` has unexpected values
+ */
+function gatherConfig(configDescriptors, env, argv, options={}) {
+    const begin = typeof options.begin === 'string' ? options.begin : 'gatherConfig()';
+
+    // If `configDescriptors` ainta valid array of `ConfigDescriptor` objects,
+    // throw an exception explaining went wrong.
+    const aCDs = validateConfigDescriptors(configDescriptors, begin);
+    if (aCDs) throw Error(aCDs);
+
+    // Define a valid `GatherConfigOptions`, using an Ainta `schema` object.
+    /** @type {import('@0bdx/ainta').Schema} */
+    const schema = {
+        allowUnexpectedArgv: { types:['boolean','undefined'] },
+        begin: { types:['string','undefined'] },
+        preferEnv: { types:['boolean','undefined'] },
+    };
+
+    // Use `narrowAintas()` to create three specialist validators, which all
+    // add their explanations to the `aResults` array.
+    const [ aResults, aEnv, aArgv, aOptions ] = narrowAintas({ begin, schema },
+        aintaDictionary, aintaArray, aintaObject );
+
+    // Validate the `env`, `argv` and `options` arguments, and throw an
+    // exception if one or more fail.
+    aEnv(env, 'env', { types:['string'] });
+    aArgv(argv, 'argv', { types:['string'] });
+    aOptions(options, 'options');
+    if (aResults.length) throw Error(aResults.join('\n'));
+
+    // Prepare an array which will determine whether fallbacks will be needed.
+    // @TODO use `.fill(true)` if we upgrade tsconfig.js's compilerOptions.lib
+    const useFallbacks = [...Array(configDescriptors.length)].map(() => true);
+
+    /** @type Object.<string, boolean|number|string> */
+    const out = { WARNINGS:'' };
+
+    // If environment variables are preferred over command line variables, try
+    // to get as many as possible from `env`.
+    if (options.preferEnv) {
+        configDescriptors.forEach(({ kind, nameEnv, nameReturned }, i) => {
+            if (nameEnv in env) recordInOutput(out, nameReturned, useFallbacks,
+                i, kind, begin, '`env.' + nameEnv + '`', env[nameEnv]);
+        });
+
+        // If environment variables are preferred over command line variables,
+        // and all of the expected values have been found in `env`, then
+        // `gatherConfig()` can finish now, and avoid parsing `argv`.
+        if (useFallbacks.every(doUse => !doUse)) return out;
+    }
+
+    // Convert an `argv` like `[ "--flag", "-bN", "2", "--str", "!", "x" ]` to:
+    // `{ config: { flag:true, b:true, N:"2", str:"!" }, ignored: [ "x" ] }`.
+    // @TODO do something with `ignored`
+    const { config:argvConfig } = parseArgv(argv);
+
+    // By default, `argv` is not allowed to contain unexpected key/val pairs.
+    if (!options.allowUnexpectedArgv) {
+        const [ nameArgvLongs, nameArgvShorts ] = configDescriptors.reduce(
+            ([ longs, shorts ], { nameArgvLong, nameArgvShort }) => [
+                nameArgvLong ? { ...longs, [nameArgvLong]:true } : longs,
+                nameArgvShort ? { ...shorts, [nameArgvShort]:true } : shorts,
+            ], [{}, {}], // initial accumulator
+        );
+        Object.keys(argvConfig).forEach(key => {
+            if (!(key in nameArgvLongs) && !(key in nameArgvShorts)) {
+                const identifier = (key.length === 1 ? '-' : '--') + key;
+                throw Error(`${begin}: '${identifier}' in \`argv\` is not defined in ` +
+                    '`configDescriptors`, and `options.allowUnexpectedArgv` is `false`');
+            }
+        });
+    }
+
+    // Try to get as many variables as possible from the command line arguments.
+    configDescriptors.forEach(({ kind, nameArgvLong, nameArgvShort, nameReturned }, i) => {
+        if (useFallbacks[i] === false) return; // already found in `env`.
+        const key = nameArgvLong in argvConfig
+            ? nameArgvLong
+            : nameArgvShort in argvConfig
+                ? nameArgvShort
+                : '';
+        const identifier = nameArgvLong in argvConfig
+            ? `'--${nameArgvLong}' in \`argv\``
+            : nameArgvShort in argvConfig
+                ? `'-${nameArgvShort}' in \`argv\``
+                : '';
+        if (key) recordInOutput(out, nameReturned, useFallbacks,
+            i, kind, begin, identifier, argvConfig[key]);
+    });
+
+    // If command line variables are preferred over environment variables,
+    // and all of the expected values have been found in `argv`, then
+    // `gatherConfig()` can finish now, and avoid parsing `env`.
+    if (!options.preferEnv && useFallbacks.every(doUse => !doUse)) return out;
+
+    // Otherwise, if command line variables are preferred over environment
+    // variables and there are still values to be gathered, try to get as many
+    // as possible from `env`.
+    if (!options.preferEnv) {
+        configDescriptors.forEach(({ kind, nameEnv, nameReturned }, i) => {
+            if (useFallbacks[i] === false) return; // already found in `env`.
+            if (nameEnv in env) recordInOutput(out, nameReturned, useFallbacks,
+                i, kind, begin, '`env.' + nameEnv + '`', env[nameEnv]);
+        });
+    }
+
+    // If any values still haven't been found, use the `fallback` if available.
+    useFallbacks.forEach((useFallback, i) => {
+        if (useFallback) {
+            const desc = configDescriptors[i];
+            const { nameEnv, nameArgvLong, nameArgvShort, nameReturned } = desc;
+            if (!('fallback' in desc)) {
+                const pfx = `${begin}: \`configDescriptors[${i}]\` '${nameReturned}' ` +
+                    'is mandatory, but it has no `fallback` - ';
+                const hasArgv = (nameArgvLong in argvConfig) || (nameArgvShort in argvConfig);
+                const hasEnv = nameEnv in env;
+                if (!hasEnv && !hasArgv) throw Error(pfx +
+                    '`argv` and `env` do not contain this value');
+                if (hasEnv && !hasArgv) throw Error(pfx +
+                    '`argv` does not contain it, and it is invalid in `env`');
+                if (!hasEnv && hasArgv) throw Error(pfx +
+                    'it is invalid in `argv`, and `env` does not contain it');
+                throw Error(pfx +
+                    'it is invalid in `argv`, and also invalid in `env`');
+            }
+            out[nameReturned] = desc.fallback;
+        }
+    });
+
+    return out;
+}
+
+
+/* ----------------------------- Private Methods ---------------------------- */
+
+function recordInOutput(out, nameReturned, useFallbacks, i, kind, begin, identifier, strOrTrue) {
+    const result = stringToType(kind, begin, identifier, strOrTrue);
+    if (result[1] === '') {
+        out[nameReturned] = result[0];
+        useFallbacks[i] = false;
+    } else {
+        out.WARNINGS += result[1] + '\n';
+    }
+}
+
+function stringToType(kind, begin, identifier, strOrTrue) {
+    switch (kind) {
+        case 'boolean':
+            return stringOrTrueToBoolean(begin, identifier, strOrTrue);
+        case 'number':
+            return stringToNumber(begin, identifier, strOrTrue);
+        default: // must be 'string'
+            return [ strOrTrue, ''];
+    }
+}
+
+function stringOrTrueToBoolean(begin, identifier, strOrTrue) {
+    if (strOrTrue === 'false') return [false, ''];
+    if (strOrTrue === true || strOrTrue === 'true') return [true, ''];
+    return [
+        null,
+        `${begin}: ${identifier} '${strOrTrue}' should be boolean 'false' or 'true'`,
+    ];
+}
+
+function stringToNumber(begin, identifier, strOrTrue) {
+    const isNegative = strOrTrue[0] === '-';
+    const abs = isNegative ? strOrTrue.slice(1) : strOrTrue;
+    const base = { '0b':2, '0x':16, '0o':8 }[abs.slice(0,2)] || 10;
+    const result = base === 10
+        ? parseFloat(abs)
+        : parseInt(abs.slice(2), base);
+    if (isNaN(result)) {
+        return [
+            null,
+            `${begin}: ${identifier} '${strOrTrue}' cannot be parsed to a number`,
+        ];    
+    }
+    return [isNegative ? -result : result, ''];
+}
+
+/**
+ * ### Describes a value expected in a config file, `process.env` or `argv`.
+ *
+ * @typedef {object} ConfigDescriptor
+ * @property {boolean|number|string} [fallback]
+ *    An optional default value to use if the configuration file, `process.env`
+ *    and `process.argv` do not contain this variable. If `fallback` is
+ *    `undefined`, the value is mandatory.
+ * @property {'boolean'|'number'|'string'} kind
+ *    Determines the allowed type of value, `boolean`, `number`, or `string`.
+ * @property {string} [nameArgvLong]
+ *    The value's long name in the 'arguments vector', `process.argv`.
+ *    - Must start with a lowercase ASCII letter
+ *    - Must continue with at least one dash, digit or lowercase ASCII letter
+ *    - Must be no longer than 32 characters
+ *    - If `undefined`, there is no long name
+ * @property {string} [nameArgvShort]
+ *    The value's short name in the 'arguments vector', `process.argv`.
+ *    - Must be a lower or uppercase ASCII letter, or the question mark `"?"`
+ *    - Must be exactly one character long
+ *    - If `undefined`, there is no short name
+ * @property {string} [nameEnv]
+ *    The value's name in the shell environment, `process.env`.
+ *    - Must start with an uppercase ASCII letter
+ *    - May continue with an underscore, digit or uppercase ASCII letter
+ *    - Must be no longer than 32 characters
+ *    - If `undefined`, value cannot come from the shell environment
+ * @property {string} nameReturned
+ *    The property name in the dictionary object that `gatherConfig()` returns.
+ *    - Must start with an underscore or ASCII letter
+ *    - May continue with an underscore, digit or ASCII letter
+ *    - Must be no longer than 32 characters
+ * @property {string} [note]
+ *    A one-line summary of the expected value, up to 64 characters long, which
+ *    will be displayed by `generateHelp()` if not `undefined`.
+ *    - May contain any printable ASCII character, except the backslash `"\"`
+ *    - Must be between 1 and 64 characters long
+ */
+
+/**
+ * ### An empty array of `ConfigDescriptor` objects.
+ * 
+ * If no values are expected, there are no configuration descriptors. A function
+ * which takes a `configDescriptors` argument could use this as the default.
+ * 
+ * But using an empty `[]` like this is really a way to export the type, while
+ * avoiding the "File '...' is not a module. ts(2306)" error.
+ * 
+ * @type ConfigDescriptor[]
+ */
+const defaultConfigDescriptors = [];
+
+export { defaultConfigDescriptors, gatherConfig, parseArgv, validateConfigDescriptors };

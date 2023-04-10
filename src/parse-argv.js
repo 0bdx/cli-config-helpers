@@ -135,7 +135,7 @@ export function parseArgvTest(f) {
         if (err.message !== expected) { throw Error(`actual message:\n${err.message
             }\n!== expected message:\n${expected}\n...at ${e2l(err)}\n`)} return }
         throw Error(`expected message:\n${expected}\nbut nothing was thrown\n`) };
-    const toStr = (value) => JSON.stringify(value, null, '  ');
+    const toStr = value => JSON.stringify(value, null, '  ');
 
     // The `argv` argument should be an array of strings.
     throws(()=>f(null),

@@ -1,4 +1,23 @@
 /**
+ * ### A configuration object for `gatherConfig()`.
+ *
+ * Each option is actually optional, so an empty object `{}` is perfectly valid.
+ */
+export type GatherConfigOptions = {
+    /**
+     * Optional flag. If `true`, unexpected values in `argv` do not throw an error.
+     */
+    allowUnexpectedArgv?: boolean;
+    /**
+     * An optional way to override the `begin` string sent to `Ainta` functions.
+     */
+    begin?: string;
+    /**
+     * Optional flag. If `true`, values in `env` override values in `argv`.
+     */
+    preferEnv?: boolean;
+};
+/**
  * ### Describes a value expected in a config file, `process.env` or `argv`.
  */
 export type ConfigDescriptor = {
@@ -100,6 +119,73 @@ export type ConfigDescriptor = {
  * @type ConfigDescriptor[]
  */
 export const defaultConfigDescriptors: ConfigDescriptor[];
+/**
+ * ### A configuration object for `gatherConfig()`.
+ *
+ * Each option is actually optional, so an empty object `{}` is perfectly valid.
+ *
+ * @TODO rethink `preferEnv`, when gathering from a config file is added
+ *
+ * @typedef {object} GatherConfigOptions
+ * @property {boolean} [allowUnexpectedArgv=false]
+ *    Optional flag. If `true`, unexpected values in `argv` do not throw an error.
+ * @property {string} [begin='gatherConfig()']
+ *    An optional way to override the `begin` string sent to `Ainta` functions.
+ * @property {boolean} [preferEnv=false]
+ *    Optional flag. If `true`, values in `env` override values in `argv`.
+ */
+/**
+ * ### Gathers values from a configuration file, `process.env` or `process.argv`.
+ *
+ * @TODO gather from a config file - that will mean six possible sources
+ *
+ * There are five possible sources of an expected variable's value:
+ * 1. `argv` - long command line arguments, eg `my_command --my-var 123`
+ * 2. `argv` - short command line arguments, eg `my_command -m 123`
+ * 3. `argv` - runs of short command line arguments, eg `my_command -abc 123`
+ * 4. `env` - the node process's environment, eg `MY_VAR=123 my_command`
+ * 5. `configDescriptors.fallback` - a default provided in a `Descriptor` object
+ *
+ * Generally, command line arguments are preferred over environment variables,
+ * but that behavior can be overridden:
+ * - By default, the order of preference is 1, 2, 3, 4, 5
+ * - If `options.preferEnv` is set to `true`, the order is 4, 1, 2, 3, 5
+ *
+ * If a `ConfigDescriptor` object doesn’t provide a fallback, then that variable
+ * is mandatory, and `gatherConfig()` will throw an Error if that variable does
+ * not exist in `env` or `argv`.
+ *
+ * Note that unexpected values in `env` are ignored. By default, unexpected
+ * values in `argv` throw an error, but you can switch that behavior off using
+ * the `allowUnexpectedArgv` option.
+ *
+ * The values in `env` and `argv` will all be strings, but `gatherConfig()` will
+ * convert the strings "true" and "false" to booleans, and convert strings like
+ * "-12.34e-5", "0b10101" and "-Infinity" to numbers.
+ *
+ * @param {ConfigDescriptor[]} configDescriptors
+ *    An array of objects which describe the expected configuration values.
+ * @param {Object.<string, string>} env
+ *    A ‘dictionary object’, usually the environment variables, `process.env`.
+ * @param {string[]} argv
+ *    An ‘arguments vector’, usually the command line arguments, `process.argv`.
+ * @param {GatherConfigOptions} [options={}]
+ *    The optional configuration object.
+ * @returns {Object.<string, boolean|number|string>}
+ *    A ‘dictionary object’ where the values are booleans, numbers or strings.
+ *    This object always contains a special `WARNINGS` string, which is empty
+ *    if there were no issues.
+ * @throws
+ *    Throws an `Error` if:
+ *    - Any of the arguments are invalid
+ *    - A mandatory variable is not specified in `env` or `argv`
+ *    - `options.allowUnexpectedArgv` is false and `argv` has unexpected values
+ */
+export function gatherConfig(configDescriptors: ConfigDescriptor[], env: {
+    [x: string]: string;
+}, argv: string[], options?: GatherConfigOptions): {
+    [x: string]: boolean | number | string;
+};
 /**
  * ### Converts an `argv` to a dictionary of key/value pairs.
  *

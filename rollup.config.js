@@ -19,15 +19,14 @@ export default {
 }
 
 // Fixes typings issues.
-//
-// @TODO add fixes, as they are needed.
-//
 function fixJSDoc() {
     return {
         name: 'fix-js-doc',
         transform(source, id) {
             if (id.slice(-3) !== '.js') return null; // only transform JavaScript
-            return source;
+            return source
+                .replace(/import\('\.\/types\/default-config-descriptors'\)\./g, '')
+            ;
         }
     }
 }

@@ -6,8 +6,8 @@
  *
  * This file is not related to the "build:types" and "preflight:types" scripts
  * in package.json:
- * - "build:types" generates the starter-node-mongo-api-basic.d.ts type declaration
- * - "preflight:types" checks that starter-node-mongo-api-basic.js uses all types correctly
+ * - "build:types" generates the cli-config-helpers.d.ts type declaration
+ * - "preflight:types" checks that cli-config-helpers.js uses all types correctly
  */
 {
     "compilerOptions": {
@@ -23,8 +23,8 @@
         // Only output d.ts files, don't try to transpile JS files to JS files.
         "emitDeclarationOnly": true,
 
-        // Allow ES2020 features, like `BigInt`.
-        "lib": [ "dom", "es2020" ]
+        // // Allow ES2020 features, like `BigInt`.
+        // "lib": [ "dom", "es2020" ]
     },
 
     // Match all JavaScript files in the source directory.

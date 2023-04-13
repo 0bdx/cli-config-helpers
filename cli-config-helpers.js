@@ -155,7 +155,7 @@ function validateConfigDescriptors(
         // fallback: { fit:'bool|num|str?' }, // @TODO add `fit` to Ainta
 
         // Determine which kind of value to expect, boolean, number, or string.
-        kind: { enum:['boolean','number','string'], types:['string'] },
+        kind: { is:['boolean','number','string'], types:['string'] },
         // kind: { fit:'str', is:['boolean','number','string'] }, // @TODO add `fit` and `is` to Ainta
 
         // The value's long name in the 'arguments vector', `process.argv`.

@@ -36,7 +36,7 @@ export default function validateConfigDescriptors(
         // fallback: { fit:'bool|num|str?' }, // @TODO add `fit` to Ainta
 
         // Determine which kind of value to expect, boolean, number, or string.
-        kind: { enum:['boolean','number','string'], types:['string'] },
+        kind: { is:['boolean','number','string'], types:['string'] },
         // kind: { fit:'str', is:['boolean','number','string'] }, // @TODO add `fit` and `is` to Ainta
 
         // The value's long name in the 'arguments vector', `process.argv`.
@@ -140,7 +140,7 @@ export default function validateConfigDescriptors(
  *    Throws an `Error` if a test fails.
  */
 export function validateConfigDescriptorsTest(f) {
-    const e2l = e => e.stack.split('\n')[2].match(/([^\/]+\.js:\d+):\d+\)?$/)[1];
+    const e2l = e => (e.stack.split('\n')[2].match(/([^\/]+\.js:\d+):\d+\)?$/)||[])[1];
     const equal = (actual, expected) => { if (actual === expected) return;
         try { throw Error() } catch(err) { throw Error(`actual:\n${actual}\n` +
             `!== expected:\n${expected}\n...at ${e2l(err)}\n`) } };

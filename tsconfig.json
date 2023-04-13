@@ -23,7 +23,7 @@
         // Only output d.ts files, don't try to transpile JS files to JS files.
         "emitDeclarationOnly": true,
 
-        // Allow ES2020 features, like `repeat()` and `flatMap()`.
+        // Allow ES2019 features, like `repeat()` and `flatMap()`.
         "lib": [ "dom", "es2019" ]
     },
 
